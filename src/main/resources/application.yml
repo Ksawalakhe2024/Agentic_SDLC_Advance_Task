@@ -1,0 +1,21 @@
+server:
+  port: 8080
+  address: 127.0.0.1
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/mcpdb;DB_CLOSE_ON_EXIT=FALSE;AUTO_RECONNECT=TRUE
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+mcp:
+  apiKey: "replace_with_secure_local_only_key"
+logging:
+  level:
+    root: INFO
+    com.example.mcp: DEBUG
+spring.h2.console.enabled: true
+spring.h2.console.path: /h2-console
