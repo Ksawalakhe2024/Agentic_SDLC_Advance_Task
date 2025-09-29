@@ -1,136 +1,113 @@
-
-# Minimal MCP Server for AI-Powered Data Injection (H2 DB — Local Only)
-
+# MCP Server + Local Chat UI (Spring Boot + H2)
 
 Last updated: 2025-09-29
 
 Overview
 --------
+This project provides a minimal, local-only MCP-style server with a built-in chat UI. It lets you:
+- Inspect the task schema
+- Generate and insert bulk tasks (e.g., 1000) into an H2 file database
+- View summary statistics
 
-This repository contains instructions and examples for building a Minimal Model Context Protocol (MCP) server using Spring Boot and an H2 embedded/file database. The MCP server provides controlled, auditable endpoints for an AI agent to inspect schema, insert data, and fetch summary statistics for a Task Management application's data. This README covers everything you need to run the service locally with minimal installs (Java 17+, Maven or Gradle) and no external database.
+It runs entirely on your machine using Spring Boot and H2 (file mode). No external databases or services are required.
 
-Important constraint (per request)
-- Use H2 DB (file mode recommended) — no PostgreSQL or remote DB required.
-- Keep everything local to the developer machine.
-- Minimize installed apps to avoid potential office-laptop security issues.
-
-Goals / Success Criteria
-------------------------
-1. MCP Server is running and accessible locally.
-2. Schema inspection works via GET /mcp/schema/tasks.
-3. AI agent inserts 1000 task records via POST /mcp/tasks.
-4. Summary endpoint reflects the inserted data (e.g., shows 1000 tasks split across statuses).
-5. All actions are documented (prompts, AI output, and results).
-
-Architecture (logical)
-----------------------
-AI Agent (Claude / GPT-4o / etc.)
-    ⇅
-Custom MCP Server (Spring Boot - local)
-    ⇅
-H2 Database (file: ./data/mcpdb) — local only (not part of main app flow)
-
-- The MCP server acts as a controlled access layer between the agent and the DB.
-- H2 is used so you don't need to run/manage a Postgres instance.
-
-ASCII diagram
--------------
-[AI Agent]
-    ⇵
-[Local MCP Server (Spring Boot)]
-    ⇵
-[H2 DB (file: ./data/mcpdb)]
-
-PlantUML diagram (optional)
+What’s working now (tested)
 ---------------------------
-You can paste the following into an online PlantUML renderer or local PlantUML to generate a visual:
-@startuml
-actor "AI Agent" as Agent
-box "Local Machine" #LightBlue
-  participant "MCP Server\n(Spring Boot)" as MCP
-  database "H2 DB\n(./data/mcpdb)" as H2
-end box
-Agent -> MCP : Inspect schema (GET /mcp/schema/tasks)
-Agent -> MCP : Generate tasks and upload (POST /mcp/tasks)
-MCP -> H2 : Read/Write via JPA
-MCP -> Agent : Provide summary (GET /mcp/tasks/summary)
-@enduml
+- Executable Spring Boot JAR (Spring Boot repackage configured)
+- H2 in file-mode at ./data/mcpdb
+- REST endpoints under /mcp/…
+- Java client that POSTS 1000 tasks
+- Local web chat UI at http://127.0.0.1:8080/
+- Optional API key gate for external write endpoint
 
-Prerequisites (local machine)
------------------------------
-- Java 17 JDK (OpenJDK 17+) — required
-- Maven 3.6+ or Gradle (optional; examples here use Maven)
-- Git (optional, only if you want to clone the repo)
-- (Optional) Python 3 for small utility scripts (the README provides Java client too, so Python is not required)
-
-Why H2 file-mode?
-- File-mode H2 stores DB in a file in the repo folder (`./data/mcpdb`); this persists across runs but remains local and isolated.
-- No network DB server to install or expose.
-
-Project scope & suggested project structure
--------------------------------------------
-Suggested package: com.example.mcp (you can change it)
-Suggested Maven structure:
-- src/main/java/com/example/mcp/
-  - entity/Task.java
-  - repository/TaskRepository.java
-  - controller/McpController.java
-  - service/McpService.java
-  - dto/TaskDto.java
-  - client/GenerateTasksClient.java
+Project structure
+-----------------
+- src/main/java/com/example/mcp
   - Application.java
-- src/main/resources/
-  - application.yml (or application.properties)
-- scripts/
-  - generate_tasks_client.java (or Python alternative)
-  - post_1000_tasks.sh (curl + Python)
+  - controller/
+    - McpController.java           (REST endpoints)
+    - ChatController.java          (Chat endpoint for UI)
+  - service/
+    - McpService.java              (schema, insert, summary)
+    - ChatAgentService.java        (simple in-app agent for chat UI)
+  - entity/
+    - Task.java
+  - repository/
+    - TaskRepository.java
+  - dto/
+    - TaskDto.java
+    - ChatRequest.java
+    - ChatResponse.java
+  - client/
+    - GenerateTasksClient.java     (posts 1000 tasks)
+- src/main/resources
+  - application.yml
+  - static/
+    - index.html                   (chat UI)
+- pom.xml
+- README.md
+- .gitignore
 
-Spring Boot dependency notes (pom.xml)
--------------------------------------
-Minimal dependencies:
-- spring-boot-starter-web
-- spring-boot-starter-data-jpa
-- com.h2database:h2
-- spring-boot-starter-validation (optional)
-- springdoc-openapi-ui (optional, for swagger)
-- lombok (optional, for brevity)
+Prerequisites
+-------------
+- Java 17+
+- Maven 3.6+
 
-Example minimal pom.xml snippet (for reference)
-<properties>
-    <java.version>17</java.version>
-    <spring-boot.version>3.2.0</spring-boot.version>
-</properties>
+Build and run (server)
+----------------------
+- Build a bootable jar (repackage is already configured in pom.xml):
+  - mvn clean package -DskipTests
+- Run the application:
+  - java -jar target/mcp-h2-0.0.1-SNAPSHOT.jar
+- Server is local-only by default: http://127.0.0.1:8080
 
-<dependencies>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>com.h2database</groupId>
-        <artifactId>h2</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.springdoc</groupId>
-        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-        <version>2.1.0</version>
-    </dependency>
-</dependencies>
+H2 console
+----------
+- http://127.0.0.1:8080/h2-console
+- JDBC URL: jdbc:h2:file:./data/mcpdb
+- User: sa
+- Password: (empty)
 
-H2 configuration (application.yml / application.properties)
-----------------------------------------------------------
-Use file-mode DB (persists to ./data/mcpdb) and bind server to localhost only.
+API key (optional, recommended)
+-------------------------------
+- External writes to /mcp/tasks require header X-MCP-KEY matching application.yml (mcp.apiKey).
+- For convenience, you can set it via environment variable:
+  - In application.yml: mcp.apiKey: ${MCP_API_KEY:replace_with_secure_local_only_key}
+  - PowerShell: $env:MCP_API_KEY="your_key"
+  - macOS/Linux: export MCP_API_KEY="your_key"
+- The in-app chat UI does not use this header; it calls services directly and remains local-only.
 
-application.yml (recommended)
+Endpoints
+---------
+- GET /mcp/help — brief description
+- GET /mcp/schema/tasks — simplified schema description
+- POST /mcp/tasks — insert array of TaskDto (requires X-MCP-KEY)
+- GET /mcp/tasks/summary — totals by status
+- POST /chat — chat endpoint used by the web UI
+
+Run the chat UI
+---------------
+- After starting the server, open http://127.0.0.1:8080/
+- Try messages:
+  - show schema
+  - generate 1000 tasks
+  - show summary
+  - Please inspect the task schema at /mcp/schema/tasks. Then generate and insert 1000 diverse tasks with random statuses, titles, and due dates using the /mcp/tasks endpoint.
+
+Java client to insert 1000 tasks
+--------------------------------
+- In a second terminal from the project root:
+  - Ensure the server is running
+  - Option A (configured main): mvn exec:java
+  - Option B (explicit main): mvn exec:java -Dexec.mainClass=com.example.mcp.client.GenerateTasksClient
+- If using the external REST endpoint directly, ensure the header X-MCP-KEY matches application.yml’s mcp.apiKey (or MCP_API_KEY env var).
+
+Configuration (application.yml)
+-------------------------------
+```yaml
 server:
   port: 8080
   address: 127.0.0.1
-
 spring:
   datasource:
     url: jdbc:h2:file:./data/mcpdb;DB_CLOSE_ON_EXIT=FALSE;AUTO_RECONNECT=TRUE
@@ -141,206 +118,97 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-
-# Enable H2 console for local debugging (only accessible locally)
+mcp:
+  apiKey: ${MCP_API_KEY:replace_with_secure_local_only_key}
+logging:
+  level:
+    root: INFO
+    com.example.mcp: DEBUG
 spring.h2.console.enabled: true
 spring.h2.console.path: /h2-console
+```
 
-Quick application startup (local)
---------------------------------
-1. Build:
-   - Using Maven:
-     - mvn clean package -DskipTests
-   - Or use your IDE to run Application.java.
+High-Level Design (HLD)
+-----------------------
+Components:
+- Web UI (static index.html)
+  - Renders a simple chat interface, posts messages to /chat.
+- ChatController
+  - Receives chat requests, delegates to ChatAgentService.
+- ChatAgentService
+  - Lightweight, rule-based agent; understands “schema”, “generate N”, “summary”. Uses McpService.
+- McpController
+  - Public REST endpoints for schema, insert, and summary (agent-accessible via HTTP if desired).
+- McpService
+  - Core domain logic: returns schema, performs inserts, computes summary.
+- TaskRepository (JPA)
+  - CRUD over Task entity.
+- H2 Database (file)
+  - Local persistence at ./data/mcpdb.
 
-2. Start:
-   - java -jar target/mcp-server-0.0.1-SNAPSHOT.jar
-   - Or mvn spring-boot:run
+Data flow (typical paths):
+1) Chat UI -> /chat -> ChatAgentService -> McpService -> H2 (insert/read) -> Chat UI reply
+2) External client -> /mcp/tasks (X-MCP-KEY) -> McpService -> H2 -> 200 with inserted count
+3) External client -> /mcp/schema/tasks or /mcp/tasks/summary -> McpService -> H2 -> JSON result
 
-3. The server listens only on 127.0.0.1:8080 by default.
+Non-functional notes:
+- Local-only binding (127.0.0.1) by default
+- API key gate for write endpoint to reduce accidental misuse
+- Minimal footprint; Java 17 + Maven only
 
-H2 console
-----------
-- URL: http://127.0.0.1:8080/h2-console
-- JDBC URL: jdbc:h2:file:./data/mcpdb
-- User: sa
-- Password: (empty)
-- Use this only locally for verification.
+Low-Level Design (LLD)
+----------------------
+Key classes and responsibilities:
+- Task (entity)
+  - Fields: id, title, description, status (TODO/IN_PROGRESS/DONE/BLOCKED), priority (LOW/MEDIUM/HIGH), dueDate, assignee, createdAt, updatedAt
+  - Lifecycle hooks: @PrePersist assigns defaults and timestamps; @PreUpdate maintains updatedAt
+- TaskRepository
+  - JpaRepository<Task, Long>
+- TaskDto
+  - Input DTO for POST /mcp/tasks (validated: title required)
+- McpService
+  - getTaskSchema(): Map<String,Object>
+  - insertTasks(List<TaskDto>): Map<String,Object> with inserted count
+  - getSummary(): total and counts per status
+- McpController
+  - /mcp/help, /mcp/schema/tasks, /mcp/tasks (POST; requires X-MCP-KEY), /mcp/tasks/summary
+- ChatAgentService
+  - handle(String): AgentResult { reply, data }
+  - generateTasks(int): List<TaskDto> with randomized contents
+- ChatController
+  - /chat POST => ChatResponse { reply, data }
+- ChatRequest/ChatResponse
+  - Simple request/response DTOs for chat endpoint
 
-Data model (Task schema)
-------------------------
-A simple Task entity suitable to a Task Management app:
+Sequence (Generate 1000 tasks via Chat UI):
+1) Browser -> POST /chat { message: "generate 1000 tasks" }
+2) ChatController -> ChatAgentService.handle
+3) ChatAgentService.generateTasks(1000) -> McpService.insertTasks -> H2
+4) ChatAgentService -> McpService.getSummary -> H2
+5) ChatController -> Browser { reply, summary }
 
-- id (Long) — primary key
-- title (String, required)
-- description (String, optional)
-- status (ENUM — TODO, IN_PROGRESS, DONE, BLOCKED)
-- priority (ENUM — LOW, MEDIUM, HIGH) or integer
-- dueDate (LocalDate)
-- createdAt (Instant)
-- updatedAt (Instant)
-- assignee (String)
-- tags (String or JSON text) — optional
-
-Example Java entity (Task.java)
-[See src/main/java/com/example/mcp/entity/Task.java]
-
-Repository (TaskRepository.java)
-[See src/main/java/com/example/mcp/repository/TaskRepository.java]
-
-MCP endpoints (controller / behavior)
-------------------------------------
-- GET /mcp/help
-- GET /mcp/schema/tasks
-- POST /mcp/tasks
-- GET /mcp/tasks/summary
-
-Validation & Safety (local-only)
--------------------------------
-- server.address=127.0.0.1 -> Prevent public exposure.
-- (Optional) Add a simple token header check: require X-MCP-KEY header to match a strong value stored in application.yml.
-- Log AI-originated operations.
-
-Generating and inserting 1000 tasks (Java client)
--------------------------------------------------
-See src/main/java/com/example/mcp/client/GenerateTasksClient.java and run:
-  mvn exec:java -Dexec.mainClass="com.example.mcp.client.GenerateTasksClient"
-
-Verifying results
------------------
-- GET /mcp/tasks/summary should show total 1000.
-- H2 console: SELECT COUNT(*) FROM tasks; SELECT status, COUNT(*) FROM tasks GROUP BY status;
-
-Sample prompts for AI agent
----------------------------
-"Please inspect the task schema at http://127.0.0.1:8080/mcp/schema/tasks. Then generate and insert 1000 diverse tasks with random statuses, titles, and due dates using the POST http://127.0.0.1:8080/mcp/tasks endpoint. Use the header X-MCP-KEY with value 'replace_with_secure_local_only_key'. After inserting, verify success using GET http://127.0.0.1:8080/mcp/tasks/summary and return a count of tasks per status and total."
-
-OpenAPI / Swagger (optional)
-----------------------------
-- Add springdoc-openapi to enable /swagger-ui.html
+Sequence (External client using REST):
+1) Client -> GET /mcp/schema/tasks
+2) Client -> POST /mcp/tasks (X-MCP-KEY) with 1000 TaskDto
+3) Client -> GET /mcp/tasks/summary
 
 Troubleshooting
----------------
-- Ensure ./data exists and is writable.
-- 401 on POST: header X-MCP-KEY mismatch.
-- Validation errors: title is required.
-=======
-This project implements a Minimal Model Context Protocol (MCP) server built with Spring Boot and H2 (file mode). The service provides a controlled, local-only API for an AI agent to inspect the Task schema, insert tasks, and retrieve summary statistics.
+--------------
+- Error: "no main manifest attribute"
+  - Fix: Build with repackage (already configured). Use mvn clean package -DskipTests and run the jar.
+- Error: 401 Unauthorized on POST /mcp/tasks
+  - Ensure the X-MCP-KEY header matches mcp.apiKey (or MCP_API_KEY env var).
+- Exec plugin error (Unknown lifecycle phase …mainClass…)
+  - Ensure dashes are ASCII hyphens. Or run mvn exec:java (the main class is configured in pom.xml).
 
-Key constraints and rationale
-- Uses H2 in file mode (local only) — no external DB or network setup.
-- Server binds to 127.0.0.1 by default (local-only).
-- Lightweight API key check (X-MCP-KEY) to prevent accidental remote use.
-- Minimal runtime requirements: Java 17 and Maven.
-
-Goals / Success Criteria
-1. MCP Server is running and accessible locally.
-2. Schema inspection works via GET /mcp/schema/tasks.
-3. AI agent (or client) inserts 1000 task records via POST /mcp/tasks.
-4. Summary endpoint reflects the inserted data.
-5. Audit/logging and README document all actions, sample prompts, and results.
-
-Project structure
+Sample curl calls
 -----------------
-- src/main/java/com/example/mcp
-  - Application.java
-  - controller/McpController.java
-  - service/McpService.java
-  - entity/Task.java
-  - repository/TaskRepository.java
-  - dto/TaskDto.java
-  - client/GenerateTasksClient.java
-- src/main/resources
-  - application.yml
-- pom.xml
-- README.md
-- .gitignore
-
-Prerequisites (local dev)
--------------------------
-- Java 17 JDK (OpenJDK 17+)
-- Maven 3.6+
-- Git (optional, for pushing)
-- No database installs required
-
-Build & run (quick)
--------------------
-1. Build
-   mvn clean package -DskipTests
-
-2. Run
-   java -jar target/mcp-h2-0.0.1-SNAPSHOT.jar
-
-3. Server will be reachable at http://127.0.0.1:8080
-
-H2 Console
-----------
-- Enabled and local-only: http://127.0.0.1:8080/h2-console
-- JDBC URL: jdbc:h2:file:./data/mcpdb
-- User: sa
-- Password: (empty)
-
-Configuration
--------------
-Edit `src/main/resources/application.yml` to change API key (mcp.apiKey) if desired. Default binds server to 127.0.0.1.
-
-API Endpoints
--------------
-- GET /mcp/help
-  - Short, machine/agent-readable description of endpoints.
-
-- GET /mcp/schema/tasks
-  - Returns a simplified JSON description of the `tasks` table (fields, types, enums).
-
-- POST /mcp/tasks
-  - Accepts JSON array of TaskDto objects and inserts them. Requires header `X-MCP-KEY: <apiKey>`.
-  - Example payload (array of objects):
-    {
-      "title":"Task 1",
-      "description":"Auto-generated",
-      "status":"TODO",
-      "priority":"MEDIUM",
-      "dueDate":"2025-10-10",
-      "assignee":"Alice"
-    }
-
-- GET /mcp/tasks/summary
-  - Returns total count and counts per status.
-
-Security & local-only controls
-------------------------------
-- server.address = 127.0.0.1 by default.
-- X-MCP-KEY header required for POST /mcp/tasks (set in application.yml).
-- Keep the DB file local (./data/mcpdb).
-
-Sample prompt for an AI agent
------------------------------
-"Please inspect the task schema at http://127.0.0.1:8080/mcp/schema/tasks. Then generate and insert 1000 diverse tasks with random statuses, titles, and due dates using POST http://127.0.0.1:8080/mcp/tasks. Include header `X-MCP-KEY: <value>` with the configured key. After insertion, validate success via GET http://127.0.0.1:8080/mcp/tasks/summary and respond with counts per status."
-
-Generate & insert 1000 tasks (Java client)
------------------------------------------
-Use the provided `GenerateTasksClient` (src/main/java/com/example/mcp/client/GenerateTasksClient.java). It uses java.net.http and Jackson to generate 1000 tasks and POST them. Run after server is started:
-
-  mvn exec:java -Dexec.mainClass="com.example.mcp.client.GenerateTasksClient"
-
-Verification
-------------
-1. GET /mcp/tasks/summary -> expect total 1000.
-2. H2 console -> SELECT COUNT(*) FROM tasks; SELECT status, COUNT(*) FROM tasks GROUP BY status;
-3. Server logs will show audit entries for inserted count.
-
-What to include in deliverables
--------------------------------
-- Source code (Spring Boot application)
-- README (this file)
-- Proof (logs or screenshot) showing 1000 tasks in DB (capture after performing the test locally)
-
-Troubleshooting
----------------
-- If H2 fails to open ./data/mcpdb, ensure the directory exists and is writable.
-- If POST fails with 401, ensure header X-MCP-KEY matches application.yml.
+- Help: curl http://127.0.0.1:8080/mcp/help
+- Schema: curl http://127.0.0.1:8080/mcp/schema/tasks
+- Insert (example empty array):
+  - curl -X POST http://127.0.0.1:8080/mcp/tasks -H "X-MCP-KEY: $MCP_API_KEY" -H "Content-Type: application/json" -d "[]"
+- Summary: curl http://127.0.0.1:8080/mcp/tasks/summary
 
 License & notes
 ---------------
-This project is intended for local development and testing only. Do not expose the server to public networks without additional security (TLS, OAuth, IP filters).
-
+Local development and testing only. Do not expose the server publicly without adding transport security (TLS) and stronger auth.
