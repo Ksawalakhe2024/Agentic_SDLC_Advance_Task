@@ -53,20 +53,21 @@ Prerequisites
 
 Build and run (server)
 ----------------------
-You can build and run now:
+Terminal 1 (start the server)
 
-Terminal 1 (server):
-mvn clean package -DskipTests
+mvn clean package -DskipTests spring-boot:repackage
 java -jar target/mcp-h2-0.0.1-SNAPSHOT.jar
 
-Verify the jar is bootable (optional):
-Windows: jar tf target/mcp-h2-0.0.1-SNAPSHOT.jar | findstr BOOT-INF
+Terminal 2 (run the client)
+Open a new terminal/tab.
+cd to the same project root.
+Set the API key for this terminal session:
+Windows PowerShell: $env:MCP_API_KEY="paste_your_key"
+Windows cmd: set MCP_API_KEY=paste_your_key
+macOS/Linux: export MCP_API_KEY="paste_your_key"
 
-macOS/Linux: jar tf target/mcp-h2-0.0.1-SNAPSHOT.jar | grep BOOT-INF
-
-Terminal 2 (client)
-Set the API key (example PowerShell): $env:MCP_API_KEY="your_key"
-mvn exec:java
+Run the client:
+mvn exec:java -Dexec.mainClass="com.example.mcp.client.GenerateTasksClient"
 
 H2 console
 ----------
