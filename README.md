@@ -53,11 +53,20 @@ Prerequisites
 
 Build and run (server)
 ----------------------
-- Build a bootable jar (repackage is already configured in pom.xml):
-  - mvn clean package -DskipTests spring-boot:repackage
-- Run the application:
-  - java -jar target/mcp-h2-0.0.1-SNAPSHOT.jar
-- Server is local-only by default: http://127.0.0.1:8080
+You can build and run now:
+
+Terminal 1 (server):
+mvn clean package -DskipTests
+java -jar target/mcp-h2-0.0.1-SNAPSHOT.jar
+
+Verify the jar is bootable (optional):
+Windows: jar tf target/mcp-h2-0.0.1-SNAPSHOT.jar | findstr BOOT-INF
+
+macOS/Linux: jar tf target/mcp-h2-0.0.1-SNAPSHOT.jar | grep BOOT-INF
+
+Terminal 2 (client)
+Set the API key (example PowerShell): $env:MCP_API_KEY="your_key"
+mvn exec:java
 
 H2 console
 ----------
