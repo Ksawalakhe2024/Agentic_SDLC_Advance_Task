@@ -54,7 +54,7 @@ Prerequisites
 Build and run (server)
 ----------------------
 - Build a bootable jar (repackage is already configured in pom.xml):
-  - mvn clean package -DskipTests
+  - mvn clean package -DskipTests spring-boot:repackage
 - Run the application:
   - java -jar target/mcp-h2-0.0.1-SNAPSHOT.jar
 - Server is local-only by default: http://127.0.0.1:8080
